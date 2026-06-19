@@ -1,4 +1,4 @@
-# A Deep Divo into Expected Loss through Credit ScorinG Industry-Standard Machine Learning under Basel II/III
+# A Deep Dive into Expected Loss through Credit Scoring Industry-Standard Machine Learning under Basel II/III
 
 **A full end-to-end credit risk pipeline built on 2.1 million Lending Club loans, producing calibrated Probability of Default, Loss Given Default, and Expected Loss estimates for an entire loan portfolio.**
 
