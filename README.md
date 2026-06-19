@@ -37,11 +37,23 @@ Six classification models were trained and compared. The winner was LightGBM wit
 
 One thing worth highlighting: the gap between logistic regression (0.704) and LightGBM (0.773) is exactly the kind of result that fuels the ongoing debate in the industry between interpretability and performance. Logistic regression is the regulatory standard in Basel IRB because every coefficient is auditable. Gradient boosting is better at capturing the complex non-linear relationships in borrower data. This project trains both and documents the trade-off.
 
-The raw probabilities from LightGBM were inflated to a portfolio mean of 0.41 due to class imbalance handling, far above the real default rate of 0.10. Isotonic regression calibration brought them exactly in line with the observed rate:
+To understand what actually drives the model's predictions, SHAP values were computed on the final model. The plot below shows how each feature pushes a borrower's predicted default probability up or down. Interest rate, debt-to-income ratio, and credit utilization come out as the strongest drivers, which matches the economic intuition: a borrower paying a high rate, already stretched on debt, and using most of their available credit is exactly the profile a risk analyst would flag.
+
+![SHAP PD](assets/shap_pd_final.png)
+
+A model that performs well but cannot be explained is a hard sell in a regulated environment. SHAP makes every prediction auditable, which is what allows a gradient boosting model to even be considered alongside the regulatory-standard logistic regression.
+
+### Probability calibration
+
+A good risk score is not enough on its own. For Expected Loss to be meaningful, a predicted probability of 0.30 has to actually mean a 30% chance of default. The raw LightGBM output failed this test badly: class imbalance handling inflated the average predicted probability to 0.41, four times the real default rate of 0.10.
+
+Isotonic regression calibration fixed this without touching the model's ability to rank borrowers by risk. The result lines up almost perfectly with reality:
 
 > After calibration: mean PD = **0.1017**, observed default rate = **0.1017**
 
-![SHAP PD](assets/shap_pd_final.png)
+![Calibration Curve](assets/calibration_curve.png)
+
+The curve on the left shows the raw model drifting away from the diagonal that represents perfect calibration. On the right, after calibration, the predictions track that diagonal closely across the full range of scores. This is the difference between a model that ranks risk well and one whose numbers can actually be trusted in a loss calculation.
 
 ### Loss Given Default (LGD)
 
@@ -51,7 +63,11 @@ Six regression models were trained on the ~128k defaulted loans only. CatBoost c
 
 The LGD model is then applied to the entire portfolio (including non-defaulted loans) to estimate what would be lost if each loan were to default. This is standard practice in Basel IRB capital calculations.
 
+As with the PD model, SHAP values reveal what drives the loss predictions. The total revolving balance and the monthly payment dominate, which makes sense: both are direct measures of how much money is on the line when a borrower stops paying. The larger the outstanding exposure, the more there is to lose.
+
 ![SHAP LGD](assets/shap_lgd_final.png)
+
+Reassuringly, the model needs no calibration adjustment. The average predicted loss on defaulted loans (45.5%) lands almost exactly on the observed average (46.0%), a natural consequence of regression not suffering from the class imbalance problem that distorted the PD probabilities.
 
 ---
 
