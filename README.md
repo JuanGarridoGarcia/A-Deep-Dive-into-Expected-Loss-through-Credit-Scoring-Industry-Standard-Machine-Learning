@@ -37,7 +37,7 @@ Six classification models were trained and compared. The winner was LightGBM wit
 
 One thing worth highlighting: the gap between logistic regression (0.704) and LightGBM (0.773) is exactly the kind of result that fuels the ongoing debate in the industry between interpretability and performance. Logistic regression is the regulatory standard in Basel IRB because every coefficient is auditable. Gradient boosting is better at capturing the complex non-linear relationships in borrower data. This project trains both and documents the trade-off.
 
-To understand what actually drives the model's predictions, SHAP values were computed on the final model. The plot below shows how each feature pushes a borrower's predicted default probability up or down. Interest rate, debt-to-income ratio, and credit utilization come out as the strongest drivers, which matches the economic intuition: a borrower paying a high rate, already stretched on debt, and using most of their available credit is exactly the profile a risk analyst would flag.
+To understand what actually drives the model's predictions, SHAP values were computed on the final model. The plot below shows how each feature pushes a borrower's predicted default probability up or down. Interest rate, monthly payment and home ownership status come out as the strongest drivers, which matches the economic intuition: a borrower paying a high rate, already stretched on debt, and using most of their available credit is exactly the profile a risk analyst would flag.
 
 ![SHAP PD](assets/shap_pd_final.png)
 
