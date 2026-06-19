@@ -1,0 +1,22 @@
+# Core data manipulation
+numpy==2.2.4
+pandas==2.2.3
+
+# Machine learning
+scikit-learn==1.6.1
+xgboost==3.0.0
+lightgbm==4.6.0
+catboost==1.2.7
+
+# Explainability
+shap==0.47.2
+
+# Visualization
+matplotlib==3.10.1
+seaborn==0.13.2
+
+# Statistical utilities
+scipy==1.15.2
+
+# Serialization
+pickle5==0.0.12
