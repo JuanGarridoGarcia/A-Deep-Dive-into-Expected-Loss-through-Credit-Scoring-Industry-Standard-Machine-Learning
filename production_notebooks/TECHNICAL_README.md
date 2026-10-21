@@ -1,4 +1,4 @@
-# Technical README — Production Notebooks
+# Technical README: Production Notebooks
 
 This document describes the structure, execution order, inputs, outputs, and design decisions of the production notebook pipeline. It is intended as a reference for future development and maintenance of the project.
 
@@ -21,13 +21,17 @@ repo/
         06_training_lgd.ipynb
         07_expected_loss.ipynb
     src/
-        pipeline_PD.py              # FeaturePipeline_PD class
         pipeline_LGD.py             # FeaturePipeline_LGD class
         clean_features_PD.py        # outlier treatment function for PD
         clean_features_LGD.py       # outlier treatment function for LGD
+        preprocess.py               # RobustScaler + One-Hot Encoding functions
         train_models_PD.py          # training orchestration for PD models
         train_models_LGD.py         # training orchestration for LGD models
-        preprocess.py               # RobustScaler + One-Hot Encoding functions
+        feature_selection.py        # predictive power, correlation and SHAP selection
+        feature_engineering.py      # emp_title grouping, emp_length parsing
+        feature_statistics.py       # dataset audit, outlier summary, distribution tests
+        feature_plot.py             # EDA plots
+    tests/                          # unit tests for src/ (pytest)
     docs/
         pd_feature_descriptions.md
         pd_feature_treatment.md
@@ -278,13 +282,16 @@ Both orderings are economically correct: longer-term and higher-rate loans show 
 
 | File | Description |
 |---|---|
-| `pipeline_PD.py` | `FeaturePipeline_PD` class — fit/transform contract for PD preprocessing |
-| `pipeline_LGD.py` | `FeaturePipeline_LGD` class — fit/transform contract for LGD preprocessing |
+| `pipeline_LGD.py` | `FeaturePipeline_LGD` class: fit/transform contract for LGD preprocessing |
 | `clean_features_PD.py` | Outlier treatment function for PD features |
 | `clean_features_LGD.py` | Outlier treatment function for LGD features |
+| `preprocess.py` | `preprocess_features` (alias `preprocess_features_LGD`): RobustScaler + OHE |
 | `train_models_PD.py` | Training orchestration for all 6 PD classification models |
 | `train_models_LGD.py` | Training orchestration for all 6 LGD regression models |
-| `preprocess.py` | `preprocess_features` and `preprocess_features_LGD` — RobustScaler + OHE |
+| `feature_selection.py` | Mutual information, permutation importance, Lasso, Boruta, correlation filter, SHAP selection |
+| `feature_engineering.py` | `group_emp_title`, `clean_emp_length` |
+| `feature_statistics.py` | `dataset_audit`, `outlier_summary`, `compare_distributions` |
+| `feature_plot.py` | EDA plotting helpers |
 
 ---
 
@@ -312,7 +319,7 @@ Both orderings are economically correct: longer-term and higher-rate loans show 
 pip install -r requirements.txt
 ```
 
-Python 3.13.2 required.
+Python 3.13 required. Run the notebooks from the repository root or from `production_notebooks/`; the first cell of each notebook sets the working directory and adds `src/` to the path.
 
 ---
 
