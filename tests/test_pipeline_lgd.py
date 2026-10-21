@@ -15,7 +15,7 @@ def test_transform_before_fit_raises(lgd_frame):
 
 def test_parameters_come_from_fit_population_only(lgd_frame):
     pipe = FeaturePipeline_LGD().fit(lgd_frame)
-    cap = pipe.params["total_credit_revolving_bal_cap"]
+    cap = pipe.params["treatment"]["total_credit_revolving_bal"]["cap_upper"]
     assert cap == pytest.approx(lgd_frame["total_credit_revolving_bal"].quantile(0.99))
 
     # A new population with much larger balances must be capped at the fitted value,
@@ -49,3 +49,26 @@ def test_save_and_load_roundtrip(lgd_frame, tmp_path):
     pipe.save(path)
     loaded = FeaturePipeline_LGD.load(path)
     pd.testing.assert_frame_equal(loaded.transform(lgd_frame), pipe.transform(lgd_frame))
+
+
+def test_pipeline_follows_the_selected_feature_set(lgd_frame):
+    # A different selection: a feature without a treatment step and a text category.
+    df = lgd_frame.drop(columns=["num_open_credit_lines"]).assign(
+        tot_num_credit_lines=np.arange(len(lgd_frame)) % 50,
+        verification_status=np.where(np.arange(len(lgd_frame)) % 3 == 0, "Verified", "Not Verified"),
+    )
+    pipe = FeaturePipeline_LGD().fit(df)
+    out = pipe.transform(df)
+    assert "verification_status_Verified" in out.columns
+    assert "tot_num_credit_lines" in pipe.params["numeric_features"]
+    assert "num_open_credit_lines" not in out.columns
+    assert out.isna().sum().sum() == 0
+
+
+def test_missing_values_are_imputed_with_the_fit_median(lgd_frame):
+    df = lgd_frame.copy()
+    df.loc[:19, "dept_paym_income_ratio"] = np.nan
+    pipe = FeaturePipeline_LGD().fit(df)
+    treated = pipe._apply_treatments(df)
+    expected = df["dept_paym_income_ratio"].clip(lower=0).median()
+    assert treated.loc[:19, "dept_paym_income_ratio"].eq(expected).all()
