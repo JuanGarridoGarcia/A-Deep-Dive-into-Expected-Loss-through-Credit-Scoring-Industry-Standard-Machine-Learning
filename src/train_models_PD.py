@@ -302,6 +302,7 @@ def train_catboost(
             random_state=42,
             verbose=0,
             auto_class_weights='Balanced',
+            allow_writing_files=False,
         ),
         param_dist=param_dist,
         X_train=X_train, y_train=y_train,
