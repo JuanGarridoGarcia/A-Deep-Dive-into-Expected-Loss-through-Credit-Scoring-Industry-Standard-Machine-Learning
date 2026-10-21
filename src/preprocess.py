@@ -38,5 +38,18 @@ def preprocess_features(df_train: pd.DataFrame, df_test: pd.DataFrame,
     return df_train, df_test, scaler
 
 
+def apply_preprocessing(df: pd.DataFrame, categorical_features: list,
+                        numeric_features: list, columns, scaler) -> pd.DataFrame:
+    """
+    Apply an already fitted preprocessing to a new frame (e.g. a calibration or
+    inference set): same dummies, columns aligned to the training schema, and
+    the training scaler. Nothing is refitted.
+    """
+    df = pd.get_dummies(df, columns=categorical_features, drop_first=True)
+    df = df.reindex(columns=list(columns), fill_value=0)
+    df[numeric_features] = scaler.transform(df[numeric_features])
+    return df
+
+
 # The LGD model uses exactly the same preprocessing on the defaulted population.
 preprocess_features_LGD = preprocess_features

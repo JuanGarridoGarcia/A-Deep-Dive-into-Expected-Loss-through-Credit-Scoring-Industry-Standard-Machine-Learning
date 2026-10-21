@@ -36,3 +36,12 @@ def test_inputs_not_mutated():
 
 def test_lgd_alias_is_the_same_function():
     assert preprocess_features_LGD is preprocess_features
+
+
+def test_apply_preprocessing_matches_the_fitted_transform():
+    from preprocess import apply_preprocessing
+
+    train, test = _frames()
+    tr, te, scaler = preprocess_features(train, test, ["c"], ["x"])
+    again = apply_preprocessing(test, ["c"], ["x"], tr.columns, scaler)
+    pd.testing.assert_frame_equal(again, te)

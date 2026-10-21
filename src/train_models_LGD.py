@@ -340,7 +340,8 @@ def train_all_models_LGD(
     results_df = (
         pd.DataFrame(summary_rows)
         .set_index('model')
-        .sort_values('rmse', ascending=True)
+        # Rank by cross-validated RMSE so the test set is not used for model selection.
+        .sort_values('cv_rmse', ascending=True)
     )
 
     # Save summary
