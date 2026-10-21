@@ -9,7 +9,7 @@ lightgbm==4.6.0
 catboost==1.2.8
 
 # Explainability
-shap==0.47.2
+shap==0.48.0
 
 # Visualization
 matplotlib==3.10.1
