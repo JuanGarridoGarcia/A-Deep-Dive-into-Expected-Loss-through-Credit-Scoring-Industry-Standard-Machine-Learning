@@ -106,7 +106,7 @@ Most credit risk projects on GitHub train one model, report AUC, and call it don
 ```
 repo/
     original_notebook/
-        CreditScoring_ExpectedLossCalculation.ipynb   # full exploratory notebook with all analysis
+        CreditScoring_ExpectedLossCalculation.ipynb   # archived exploratory run, with all outputs
     production_notebooks/
         01_data_diagnosis.ipynb
         02_feature_selection.ipynb
@@ -115,36 +115,44 @@ repo/
         05_training_pd.ipynb
         06_training_lgd.ipynb
         07_expected_loss.ipynb
+        TECHNICAL_README.md                           # inputs, outputs and decisions per notebook
     src/
-        pipeline_PD.py
-        pipeline_LGD.py
-        train_models_PD.py
-        train_models_LGD.py
-        clean_features_PD.py
-        clean_features_LGD.py
-        preprocess.py
-    docs/
-        # 11 markdown documents covering every design decision
-    assets/
-        # charts and visualizations
+        clean_features_PD.py      # outlier treatment for the PD features
+        clean_features_LGD.py     # outlier treatment for the LGD features
+        preprocess.py             # RobustScaler + one-hot encoding
+        pipeline_LGD.py           # FeaturePipeline_LGD: fit on defaulted loans, apply to the portfolio
+        train_models_PD.py        # tuning and training of the 6 PD classifiers
+        train_models_LGD.py       # tuning and training of the 6 LGD regressors
+        feature_selection.py      # mutual information, permutation, Lasso, Boruta, SHAP selection
+        feature_engineering.py    # employment title grouping and other feature engineering
+        feature_statistics.py     # dataset audit, outlier summary, distribution tests
+        feature_plot.py           # EDA plots
+    tests/                        # unit tests for src/ (pytest)
+    assets/                       # charts used in this README
     requirements.txt
 ```
 
-The original notebook contains the full exploratory analysis with all intermediate outputs, comments, and visualizations. The production notebooks are a clean, modular reorganization designed for independent execution. A full technical README for the production notebooks lives in `production_notebooks/TECHNICAL_README.md`.
+The original notebook is the full exploratory analysis, kept as a record with all intermediate outputs. The production notebooks are the clean, modular version and the one to run. `production_notebooks/TECHNICAL_README.md` documents the inputs, outputs and design decisions of each step.
 
 ---
 
 ## How to run it
 
 ```bash
-git clone https://github.com/yourusername/credit-risk-expected-loss
-cd credit-risk-expected-loss
+git clone https://github.com/JuanGarridoGarcia/A-Deep-Dive-into-Expected-Loss-through-Credit-Scoring-Industry-Standard-Machine-Learning
+cd A-Deep-Dive-into-Expected-Loss-through-Credit-Scoring-Industry-Standard-Machine-Learning
 pip install -r requirements.txt
 ```
 
-Then run the production notebooks in order (01 through 07), or open the original notebook for the full analysis.
+1. Download the [Lending Club loan data (cleared)](https://www.kaggle.com/datasets/db0boy/lending-club-loan-data-cleared/data) from Kaggle and place `X.csv` and `target.csv` in `data/raw/`.
+2. Run the production notebooks in order, 01 to 07, from the repository root or from `production_notebooks/`. Each one reads its inputs from `data/processed/` and writes its outputs there, so they can also be run one at a time.
 
-Data from [Lending Club Loan Data on Kaggle](https://www.kaggle.com/). Place `target.csv` and `X.csv` in `data/raw/`.
+To run the unit tests:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
 
 ---
 

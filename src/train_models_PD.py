@@ -1,7 +1,6 @@
 import os
 import json
 import pickle
-import numpy as np
 import pandas as pd
 
 from scipy.stats import uniform, randint
@@ -11,8 +10,8 @@ from sklearn.tree            import DecisionTreeClassifier
 from sklearn.ensemble        import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics         import (
-    roc_auc_score, accuracy_score, precision_score,
-    recall_score, f1_score, classification_report
+    roc_auc_score, average_precision_score, accuracy_score, precision_score,
+    recall_score, f1_score
 )
 
 from xgboost  import XGBClassifier
@@ -48,6 +47,7 @@ def _evaluate(model, X_test: pd.DataFrame, y_test: pd.Series) -> dict:
     y_pred = model.predict(X_test)
     return {
         'auc':       round(roc_auc_score(y_test, y_prob), 4),
+        'pr_auc':    round(average_precision_score(y_test, y_prob), 4),
         'accuracy':  round(accuracy_score(y_test, y_pred), 4),
         'precision': round(precision_score(y_test, y_pred), 4),
         'recall':    round(recall_score(y_test, y_pred), 4),
@@ -354,13 +354,16 @@ def train_all_models_PD(
             'precision':  metrics['precision'],
             'recall':     metrics['recall'],
             'f1':         metrics['f1'],
+            'pr_auc':     metrics['pr_auc'],
             'cv_auc':     metrics['cv_auc'],
         })
 
     results_df = (
         pd.DataFrame(summary_rows)
         .set_index('model')
-        .sort_values('auc', ascending=False)
+        # Rank by cross-validated AUC: choosing the model by test AUC would make
+        # the test set part of model selection and bias the reported metric.
+        .sort_values('cv_auc', ascending=False)
     )
 
     # Save summary

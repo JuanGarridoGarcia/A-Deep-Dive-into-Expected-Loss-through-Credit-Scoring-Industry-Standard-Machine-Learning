@@ -1,0 +1,12 @@
+# Data and generated artefacts (large or derived; see README for how to obtain them)
+data/
+models/
+
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+venv/
+.DS_Store
+Thumbs.db

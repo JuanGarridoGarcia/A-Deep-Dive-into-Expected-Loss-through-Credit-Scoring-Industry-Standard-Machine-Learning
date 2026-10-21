@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-import pandas as pd
+import numpy as np
 
 def analyze_zero_variance_feature(df, feature, target):
     """
@@ -71,7 +71,6 @@ def analyze_categorical_feature(df, feature, target):
     freq_table.columns = [f"{target} = {c}" for c in freq_table.columns]
     freq_table["pct_rows"] = (df.groupby(feature).size() / len(df) * 100).round(2)
 
-    base_rate = (df[target] == 1).mean() * 100
     print("── Frequency table (% within each category) ───────────────")
     print(freq_table.to_string())
     base_rate_0 = (df[target] == 0).mean() * 100
@@ -80,11 +79,11 @@ def analyze_categorical_feature(df, feature, target):
 
 def plot_continuous_variable_categoric_feature(df, feature, target, figsize=(8, 5)):
     
-    grupos = df[feature].dropna().unique()
-    data = [df.loc[df[feature] == g, target] for g in grupos]
+    groups = df[feature].dropna().unique()
+    data = [df.loc[df[feature] == g, target] for g in groups]
 
-    colores = ['#B5D4F4', '#F7C1C1', '#C0DD97', '#FAC775', '#F4C0D1']
-    colores_borde = ['#185FA5', '#A32D2D', '#3B6D11', '#BA7517', '#993556']
+    face_colors = ['#B5D4F4', '#F7C1C1', '#C0DD97', '#FAC775', '#F4C0D1']
+    edge_colors = ['#185FA5', '#A32D2D', '#3B6D11', '#BA7517', '#993556']
 
     fig, ax = plt.subplots(figsize=figsize)
 
@@ -99,18 +98,18 @@ def plot_continuous_variable_categoric_feature(df, feature, target, figsize=(8, 
         flierprops=dict(marker='o', color='black', alpha=0.2, markersize=3)
     )
 
-    for patch, color, border in zip(bp['boxes'], colores, colores_borde):
+    for patch, color, border in zip(bp['boxes'], face_colors, edge_colors):
         patch.set_facecolor(color)
         patch.set_edgecolor(border)
 
     handles = [
-        plt.Rectangle((0, 0), 1, 1, facecolor=colores[i], edgecolor=colores_borde[i])
-        for i in range(len(grupos))
+        plt.Rectangle((0, 0), 1, 1, facecolor=face_colors[i], edgecolor=edge_colors[i])
+        for i in range(len(groups))
     ]
-    ax.legend(handles, grupos, fontsize=11)
+    ax.legend(handles, groups, fontsize=11)
 
-    ax.set_xticks(range(1, len(grupos) + 1))
-    ax.set_xticklabels(grupos, fontsize=12)
+    ax.set_xticks(range(1, len(groups) + 1))
+    ax.set_xticklabels(groups, fontsize=12)
     ax.set_ylabel(target, fontsize=12)
     ax.set_xlabel(feature, fontsize=12)
     ax.grid(True, alpha=0.2, axis='y')

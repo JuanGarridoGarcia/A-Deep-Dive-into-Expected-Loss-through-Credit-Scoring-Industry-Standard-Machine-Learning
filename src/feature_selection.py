@@ -406,7 +406,7 @@ def select_features(
 # ──────────────────────────────────────────────
 
 def _cramers_v(x: pd.Series, y: pd.Series) -> float:
-    """V de Cramér entre dos variables categóricas."""
+    """Cramér's V between two categorical variables."""
     confusion = pd.crosstab(x, y)
     chi2 = chi2_contingency(confusion, correction=False)[0]
     n = confusion.sum().sum()
@@ -415,7 +415,7 @@ def _cramers_v(x: pd.Series, y: pd.Series) -> float:
 
 
 def _eta_squared(numeric: pd.Series, categorical: pd.Series) -> float:
-    """Eta cuadrado entre una variable numérica y una categórica."""
+    """Eta squared between a numeric and a categorical variable."""
     groups = [numeric[categorical == cat].dropna()
               for cat in categorical.unique()]
     grand_mean = numeric.mean()

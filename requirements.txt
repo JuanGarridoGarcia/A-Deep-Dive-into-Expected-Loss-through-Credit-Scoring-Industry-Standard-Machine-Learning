@@ -6,7 +6,7 @@ pandas==2.2.3
 scikit-learn==1.6.1
 xgboost==3.0.0
 lightgbm==4.6.0
-catboost==1.2.7
+catboost==1.2.8
 
 # Explainability
 shap==0.47.2
@@ -18,5 +18,5 @@ seaborn==0.13.2
 # Statistical utilities
 scipy==1.15.2
 
-# Serialization
-pickle5==0.0.12
+# Feature selection
+Boruta>=0.3

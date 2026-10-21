@@ -1,12 +1,11 @@
 import os
 import json
 import pickle
-import numpy as np
 import pandas as pd
 
 from scipy.stats import uniform, randint
 
-from sklearn.linear_model    import LinearRegression, Ridge
+from sklearn.linear_model    import Ridge
 from sklearn.tree            import DecisionTreeRegressor
 from sklearn.ensemble        import RandomForestRegressor
 from sklearn.model_selection import RandomizedSearchCV
@@ -341,7 +340,8 @@ def train_all_models_LGD(
     results_df = (
         pd.DataFrame(summary_rows)
         .set_index('model')
-        .sort_values('rmse', ascending=True)
+        # Rank by cross-validated RMSE so the test set is not used for model selection.
+        .sort_values('cv_rmse', ascending=True)
     )
 
     # Save summary
