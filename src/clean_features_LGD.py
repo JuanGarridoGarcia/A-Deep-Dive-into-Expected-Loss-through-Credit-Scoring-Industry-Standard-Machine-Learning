@@ -23,13 +23,13 @@ def clean_features_LGD(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
 
-    # total_credit_revolving_bal — cap at p99, no log1p
-    # log1p discarded: same pathology as max_bal_owed in PD model —
+    # total_credit_revolving_bal: cap at p99, no log1p
+    # log1p discarded: same pathology as max_bal_owed in PD model:
     # transformation inverts skew due to distribution shape post-capping
     cap_total_credit_revolving_bal = df['total_credit_revolving_bal'].quantile(0.99)
     df['total_credit_revolving_bal'] = df['total_credit_revolving_bal'].clip(upper=cap_total_credit_revolving_bal)
 
-    # annual_income — cap at p99, log1p if skew > 2 post-capping
+    # annual_income: cap at p99, log1p if skew > 2 post-capping
     cap_annual_income = df['annual_income'].quantile(0.99)
     df['annual_income'] = df['annual_income'].clip(upper=cap_annual_income)
 
@@ -41,10 +41,10 @@ def clean_features_LGD(df: pd.DataFrame) -> pd.DataFrame:
     else:
         print("  skew acceptable, log1p not applied to annual_income")
 
-    # used_credit_share — economic ceiling at 100
+    # used_credit_share: economic ceiling at 100
     df['used_credit_share'] = df['used_credit_share'].clip(upper=100)
 
-    # num_open_credit_lines — cap at p99 (discontinuous upper tail)
+    # num_open_credit_lines: cap at p99 (discontinuous upper tail)
     cap_num_open_credit_lines = df['num_open_credit_lines'].quantile(0.99)
     df['num_open_credit_lines'] = df['num_open_credit_lines'].clip(upper=cap_num_open_credit_lines)
 

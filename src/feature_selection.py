@@ -131,7 +131,7 @@ def _boruta_score(X: np.ndarray, y: np.ndarray, feature_names: list,
     -------
     1  → confirmed relevant
     0  → rejected
-   -1  → tentative (inconclusive — worth manual inspection)
+   -1  → tentative (inconclusive, worth manual inspection)
     """
     rf = RandomForestClassifier(n_estimators=100, n_jobs=1, random_state=42)
     boruta_sel = BorutaPy(
@@ -180,7 +180,7 @@ def diagnose_features(
 
     Returns
     -------
-    pd.DataFrame — one row per flagged feature, sorted by reason then pct_NaNs desc.
+    pd.DataFrame: one row per flagged feature, sorted by reason then pct_NaNs desc.
     Columns:
       feature              : feature name
       dtype                : 'numeric' or 'categorical'
@@ -503,7 +503,7 @@ def analyze_correlated_pairs(matrix: pd.DataFrame, report: pd.DataFrame, thresho
     """
     Identifies pairs of features with correlation above the threshold and recommends
     which one to discard based on mutual information (greedy algorithm ordered by
-    mutual information descending — the feature with lower MI is discarded).
+    mutual information descending, the feature with lower MI is discarded).
 
     Parameters
     ----------
@@ -692,14 +692,14 @@ def exploratory_feature_selection(
         full_precision = precision_score(y_test, y_pred_full)
         full_recall    = recall_score(y_test, y_pred_full)
         full_f1        = f1_score(y_test, y_pred_full)
-        print(f"→ Full model — AUC: {full_auc:.4f} | Accuracy: {full_accuracy:.4f} | "
+        print(f"→ Full model: AUC: {full_auc:.4f} | Accuracy: {full_accuracy:.4f} | "
               f"Precision: {full_precision:.4f} | Recall: {full_recall:.4f} | F1: {full_f1:.4f}")
     else:
         y_pred    = model.predict(X_test)
         full_rmse = mean_squared_error(y_test, y_pred) ** 0.5
         full_mae  = mean_absolute_error(y_test, y_pred)
         full_r2   = r2_score(y_test, y_pred)
-        print(f"→ Full model — RMSE: {full_rmse:.4f} | MAE: {full_mae:.4f} | R²: {full_r2:.4f}")
+        print(f"→ Full model: RMSE: {full_rmse:.4f} | MAE: {full_mae:.4f} | R²: {full_r2:.4f}")
 
     # ── 3. Gain-based feature importance ─────────────────────────────────────
     print("→ Computing gain-based feature importance...")
@@ -724,7 +724,7 @@ def exploratory_feature_selection(
 
     # ── 4. SHAP-based feature importance ──────────────────────────────────────
     # TreeSHAP (Lundberg et al., 2018) is exact for tree ensembles and runs in
-    # O(T·L·D²) — fast even on large datasets. We compute on a subsample of
+    # O(T·L·D²): fast even on large datasets. We compute on a subsample of
     # X_test for efficiency; 50k rows is sufficient for a stable mean(|SHAP|).
     print(f"→ Computing SHAP values (sample: {min(shap_sample_size, len(X_test)):,} rows)...")
     X_shap = X_test.sample(
@@ -797,7 +797,7 @@ def exploratory_feature_selection(
                     linewidth=1.5, label=f'Cutoff ({cutoff_gain} features)')
     axes[0, 0].set_xlabel('Feature rank', fontsize=11)
     axes[0, 0].set_ylabel('Normalized gain (proportion)', fontsize=11)
-    axes[0, 0].set_title('Feature importance — Gain', fontsize=12)
+    axes[0, 0].set_title('Feature importance: Gain', fontsize=12)
     axes[0, 0].legend()
     axes[0, 0].grid(True, alpha=0.2, axis='y')
 
@@ -822,8 +822,8 @@ def exploratory_feature_selection(
     axes[1, 0].axvline(x=cutoff_shap - 0.5, color='#A32D2D', linestyle='--',
                        linewidth=1.5, label=f'Cutoff ({cutoff_shap} features)')
     axes[1, 0].set_xlabel('Feature rank', fontsize=11)
-    axes[1, 0].set_ylabel('mean(|SHAP|) — normalized', fontsize=11)
-    axes[1, 0].set_title('Feature importance — SHAP', fontsize=12)
+    axes[1, 0].set_ylabel('mean(|SHAP|): normalized', fontsize=11)
+    axes[1, 0].set_title('Feature importance: SHAP', fontsize=12)
     axes[1, 0].legend()
     axes[1, 0].grid(True, alpha=0.2, axis='y')
 
@@ -841,11 +841,11 @@ def exploratory_feature_selection(
     axes[1, 1].legend()
     axes[1, 1].grid(True, alpha=0.2)
 
-    plt.suptitle('Exploratory feature selection — Gain vs SHAP', fontsize=14, y=1.01)
+    plt.suptitle('Exploratory feature selection: Gain vs SHAP', fontsize=14, y=1.01)
     plt.tight_layout()
     plt.show()
 
-    # SHAP summary plot (beeswarm) — feature impact direction and magnitude
+    # SHAP summary plot (beeswarm): feature impact direction and magnitude
     print("→ Generating SHAP summary plot...")
     shap.summary_plot(
         shap_values,

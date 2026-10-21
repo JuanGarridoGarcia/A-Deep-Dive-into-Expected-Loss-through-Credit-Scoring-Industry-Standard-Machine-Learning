@@ -14,7 +14,7 @@ from sklearn.preprocessing import RobustScaler
 class FeaturePipeline_LGD:
     """
     Feature preprocessing pipeline for the LGD (Loss Given Default) model.
-    Fitted on the defaulted loan population only — parameters must not be
+    Fitted on the defaulted loan population only: parameters must not be
     recomputed at inference time regardless of the input population.
 
     Fixed decisions (no parameters to fit):
@@ -35,18 +35,18 @@ class FeaturePipeline_LGD:
         Computes and stores all treatment parameters from the defaulted
         training population. Must be called on training data only.
         """
-        # total_credit_revolving_bal — p99 cap, no log1p (distribution pathology)
+        # total_credit_revolving_bal: p99 cap, no log1p (distribution pathology)
         self.params['total_credit_revolving_bal_cap'] = df['total_credit_revolving_bal'].quantile(0.99)
 
-        # annual_income — p99 cap, log1p if skew > 2 post-capping
+        # annual_income: p99 cap, log1p if skew > 2 post-capping
         self.params['annual_income_cap'] = df['annual_income'].quantile(0.99)
         df_temp = df['annual_income'].clip(upper=self.params['annual_income_cap'])
         self.params['annual_income_log'] = df_temp.skew() > 2
 
-        # num_open_credit_lines — p99 cap (discontinuous upper tail)
+        # num_open_credit_lines: p99 cap (discontinuous upper tail)
         self.params['num_open_credit_lines_cap'] = df['num_open_credit_lines'].quantile(0.99)
 
-        # RobustScaler — fitted on cleaned training data
+        # RobustScaler: fitted on cleaned training data
         numeric_features = [
             'total_credit_revolving_bal', 'monthly_payment', 'num_open_credit_lines',
             'num_rev_trades_op_in_24mths', 'used_credit_share', 'interest_rate',
@@ -64,20 +64,20 @@ class FeaturePipeline_LGD:
 
     def _apply_treatments(self, df: pd.DataFrame) -> pd.DataFrame:
         """Applies all numerical treatments using stored parameters."""
-        # total_credit_revolving_bal — cap at p99
+        # total_credit_revolving_bal: cap at p99
         df['total_credit_revolving_bal'] = df['total_credit_revolving_bal'].clip(
             upper=self.params['total_credit_revolving_bal_cap']
         )
 
-        # annual_income — cap at p99, log1p if flagged during fit
+        # annual_income: cap at p99, log1p if flagged during fit
         df['annual_income'] = df['annual_income'].clip(upper=self.params['annual_income_cap'])
         if self.params['annual_income_log']:
             df['annual_income'] = np.log1p(df['annual_income'])
 
-        # used_credit_share — economic ceiling at 100
+        # used_credit_share: economic ceiling at 100
         df['used_credit_share'] = df['used_credit_share'].clip(upper=100)
 
-        # num_open_credit_lines — cap at p99
+        # num_open_credit_lines: cap at p99
         df['num_open_credit_lines'] = df['num_open_credit_lines'].clip(
             upper=self.params['num_open_credit_lines_cap']
         )
