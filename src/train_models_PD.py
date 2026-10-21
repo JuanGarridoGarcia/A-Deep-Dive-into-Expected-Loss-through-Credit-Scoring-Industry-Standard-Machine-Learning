@@ -1,7 +1,6 @@
 import os
 import json
 import pickle
-import numpy as np
 import pandas as pd
 
 from scipy.stats import uniform, randint
@@ -12,7 +11,7 @@ from sklearn.ensemble        import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics         import (
     roc_auc_score, accuracy_score, precision_score,
-    recall_score, f1_score, classification_report
+    recall_score, f1_score
 )
 
 from xgboost  import XGBClassifier

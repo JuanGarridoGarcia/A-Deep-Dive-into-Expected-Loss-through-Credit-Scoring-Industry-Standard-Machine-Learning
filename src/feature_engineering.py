@@ -15,9 +15,8 @@ Requirements
 """
 
 import re
-import numpy as np
+
 import pandas as pd
-from sklearn.preprocessing import RobustScaler
 
 
 # ──────────────────────────────────────────────
@@ -1451,7 +1450,7 @@ def group_emp_title(
     filtered = _frequency_filter(normalized, min_freq=min_freq)
     print(f"  Unique titles after frequency filter: {filtered.nunique():,}")
 
-    print(f"\n→ Step 3: Applying keyword-based semantic mapping...")
+    print("\n→ Step 3: Applying keyword-based semantic mapping...")
     df[output_col] = filtered.apply(_semantic_mapping)
 
     # ── Summary ──────────────────────────────────────────────────────────
@@ -1477,54 +1476,7 @@ def clean_emp_length(x):
         return 10
     return float(re.search(r"\d+", x).group())
 
-def preprocess_features_LGD(df_train: pd.DataFrame, df_test: pd.DataFrame, 
-                        categorical_features: list, numeric_features: list):
-    """
-    Applies RobustScaler fitted on train only, and One-Hot Encoding to both datasets.
-    """
-    # One-Hot Encoding — applied to both independently
-    df_train = pd.get_dummies(df_train, columns=categorical_features, drop_first=True)
-    df_test  = pd.get_dummies(df_test,  columns=categorical_features, drop_first=True)
 
-    # Align columns in case get_dummies produces different columns
-    df_train, df_test = df_train.align(df_test, join='left', axis=1, fill_value=0)
-
-    # RobustScaler — fit on train only, transform both
-    scaler = RobustScaler()
-    df_train[numeric_features] = scaler.fit_transform(df_train[numeric_features])
-    df_test[numeric_features]  = scaler.transform(df_test[numeric_features])
-
-    return df_train, df_test, scaler
-
-def preprocess_features_LGD(df_train: pd.DataFrame, df_test: pd.DataFrame,
-                             categorical_features: list, numeric_features: list):
-    """
-    Applies RobustScaler fitted on train only and One-Hot Encoding to both datasets.
-    Intended for LGD model preprocessing — trained on defaulted loans only.
-
-    Parameters
-    ----------
-    df_train             : training set (cleaned via clean_features_LGD)
-    df_test              : test set (cleaned via clean_features_LGD)
-    categorical_features : list of categorical feature names to encode
-    numeric_features     : list of numeric feature names to scale
-
-    Returns
-    -------
-    df_train_processed, df_test_processed, scaler
-    """
-    from sklearn.preprocessing import RobustScaler
-
-    # One-Hot Encoding — applied to both independently
-    df_train = pd.get_dummies(df_train, columns=categorical_features, drop_first=True)
-    df_test  = pd.get_dummies(df_test,  columns=categorical_features, drop_first=True)
-
-    # Align columns in case get_dummies produces different columns
-    df_train, df_test = df_train.align(df_test, join='left', axis=1, fill_value=0)
-
-    # RobustScaler — fit on train only, transform both
-    scaler = RobustScaler()
-    df_train[numeric_features] = scaler.fit_transform(df_train[numeric_features])
-    df_test[numeric_features]  = scaler.transform(df_test[numeric_features])
-
-    return df_train, df_test, scaler
+# Preprocessing (scaling + encoding) now lives in preprocess.py; re-exported here
+# so the original exploratory notebook keeps working.
+from preprocess import preprocess_features, preprocess_features_LGD  # noqa: E402,F401
