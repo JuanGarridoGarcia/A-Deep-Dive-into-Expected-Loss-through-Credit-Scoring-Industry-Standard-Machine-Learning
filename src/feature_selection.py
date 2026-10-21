@@ -87,10 +87,14 @@ def _permutation_importance_score(X: np.ndarray, y: np.ndarray,
         stratify = y if not is_regression else None
         X, y = resample(X, y, n_samples=sample_size, stratify=stratify, random_state=42)
 
+    # The forest uses every core (threads, so the model is not copied per worker);
+    # with a fixed random_state the result is identical to a single-core run.
+    # permutation_importance stays sequential: its process workers would each get
+    # a copy of the fully grown forest, which can exhaust memory at this sample size.
     if is_regression:
-        rf = RandomForestRegressor(n_estimators=100, n_jobs=1, random_state=42)
+        rf = RandomForestRegressor(n_estimators=100, n_jobs=-1, random_state=42)
     else:
-        rf = RandomForestClassifier(n_estimators=100, n_jobs=1, random_state=42)
+        rf = RandomForestClassifier(n_estimators=100, n_jobs=-1, random_state=42)
 
     rf.fit(X, y)
     result = permutation_importance(rf, X, y, n_repeats=n_repeats, random_state=42, n_jobs=1)
@@ -133,7 +137,8 @@ def _boruta_score(X: np.ndarray, y: np.ndarray, feature_names: list,
     0  → rejected
    -1  → tentative (inconclusive, worth manual inspection)
     """
-    rf = RandomForestClassifier(n_estimators=100, n_jobs=1, random_state=42)
+    # n_jobs=-1 parallelises tree building only; results do not depend on it.
+    rf = RandomForestClassifier(n_estimators=100, n_jobs=-1, random_state=42)
     boruta_sel = BorutaPy(
         rf, n_estimators="auto", max_iter=max_iter, random_state=42, verbose=0
     )
