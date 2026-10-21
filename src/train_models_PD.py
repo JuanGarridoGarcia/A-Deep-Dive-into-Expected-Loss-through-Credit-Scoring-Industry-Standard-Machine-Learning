@@ -1,5 +1,6 @@
 import os
 import json
+import inspect
 import pickle
 import pandas as pd
 
@@ -318,6 +319,7 @@ def train_all_models_PD(
     X_test:      pd.DataFrame,
     y_test:      pd.Series,
     sample_size: int = 200_000,
+    n_iter_overrides: dict | None = None,
 ) -> pd.DataFrame:
     """
     Trains all PD models sequentially via RandomizedSearchCV on a stratified sample,
@@ -329,20 +331,34 @@ def train_all_models_PD(
     X_train, y_train : full training set (cleaned, scaled, encoded)
     X_test,  y_test  : test set
     sample_size      : number of rows for RandomizedSearchCV hyperparameter search
+    n_iter_overrides : optional {model_name: n_iter} to change the number of search
+                       iterations of specific models (default: 100 for every model)
 
     Returns
     -------
     results_df : DataFrame with one row per model and columns for each metric
     """
 
-    results = {}
+    trainers = {
+        'logistic_regression': train_logistic_regression,
+        'decision_tree':       train_decision_tree,
+        'random_forest':       train_random_forest,
+        'xgboost':             train_xgboost,
+        'lightgbm':            train_lightgbm,
+        'catboost':            train_catboost,
+    }
+    overrides = n_iter_overrides or {}
+    unknown = set(overrides) - set(trainers)
+    if unknown:
+        raise ValueError(f"Unknown model names in n_iter_overrides: {sorted(unknown)}")
 
-    results['logistic_regression'] = train_logistic_regression(X_train, y_train, X_test, y_test, sample_size)
-    results['decision_tree']       = train_decision_tree(X_train, y_train, X_test, y_test, sample_size)
-    results['random_forest']       = train_random_forest(X_train, y_train, X_test, y_test, sample_size)
-    results['xgboost']             = train_xgboost(X_train, y_train, X_test, y_test, sample_size)
-    results['lightgbm']            = train_lightgbm(X_train, y_train, X_test, y_test, sample_size)
-    results['catboost']            = train_catboost(X_train, y_train, X_test, y_test, sample_size)
+    results = {}
+    for model_name, trainer in trainers.items():
+        kwargs = {'n_iter': overrides[model_name]} if model_name in overrides else {}
+        results[model_name] = trainer(X_train, y_train, X_test, y_test, sample_size, **kwargs)
+        results[model_name]['n_iter'] = kwargs.get(
+            'n_iter', inspect.signature(trainer).parameters['n_iter'].default
+        )
 
     # Build summary DataFrame
     summary_rows = []
@@ -356,6 +372,7 @@ def train_all_models_PD(
             'f1':         metrics['f1'],
             'pr_auc':     metrics['pr_auc'],
             'cv_auc':     metrics['cv_auc'],
+            'n_iter':     metrics['n_iter'],
         })
 
     results_df = (
