@@ -41,3 +41,24 @@ def shap_values_for(model, X_explain: pd.DataFrame, X_background: pd.DataFrame,
     if values.ndim == 3:                  # newer SHAP: (rows, features, classes)
         values = values[..., 1]
     return values
+
+
+def feature_level_shap(values: np.ndarray, columns, features: list, cat_features: list) -> pd.Series:
+    """
+    Mean |SHAP| per original feature, with one-hot columns summed back together.
+
+    SHAP values are additive, so the contribution of a categorical feature to one
+    prediction is the sum over its dummy columns. Taking the mean absolute value
+    after that sum gives one importance per variable as it exists in the data
+    (e.g. one bar for `grade` instead of 34 dummies).
+    """
+    columns = list(columns)
+    contrib = {}
+    for feat in features:
+        if feat in cat_features:
+            idx = [i for i, c in enumerate(columns) if c.startswith(f"{feat}_") and c not in features]
+        else:
+            idx = [columns.index(feat)]
+        if idx:
+            contrib[feat] = np.abs(values[:, idx].sum(axis=1)).mean()
+    return pd.Series(contrib).sort_values(ascending=False)

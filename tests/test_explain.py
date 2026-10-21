@@ -46,3 +46,13 @@ def test_tree_models(data, model_cls, target):
     y = y_class if target == 1 else y_reg
     model = model_cls(max_depth=3, random_state=0).fit(X, y)
     assert shap_values_for(model, X.iloc[:50], X).shape == (50, 3)
+
+
+def test_feature_level_shap_sums_dummies_before_abs():
+    from explain import feature_level_shap
+    columns = ["income", "grade_B", "grade_C"]
+    values = np.array([[1.0, 2.0, -2.0],      # grade dummies cancel in this row
+                       [-1.0, 1.0, 1.0]])
+    out = feature_level_shap(values, columns, ["income", "grade"], ["grade"])
+    assert out["income"] == pytest.approx(1.0)
+    assert out["grade"] == pytest.approx((0.0 + 2.0) / 2)

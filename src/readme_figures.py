@@ -54,25 +54,52 @@ def _save(fig, filename: str) -> str:
 def plot_pd_model_comparison(results: pd.DataFrame, selected: str,
                              filename: str = "pd_model_comparison.png"):
     """
-    Horizontal bars of test AUC-ROC per PD model, ordered by cross-validated AUC
+    Test and cross-validated AUC-ROC per PD model, ordered by cross-validated AUC
     (the selection criterion). The selected model is highlighted.
+
+    Points rather than bars: the models differ by thousandths of AUC, and bars on
+    a truncated axis would exaggerate those differences.
     """
     df = results.sort_values("cv_auc", ascending=True)
+    y = np.arange(len(df))
     colors = [PD_DARK if m == selected else PD_LIGHT for m in df.index]
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.barh([DISPLAY_NAMES.get(m, m) for m in df.index], df["auc"], color=colors, height=0.58)
-    ax.axvline(0.75, color=RED, linestyle="--", lw=1.5, label="0.75 industry threshold")
+    ax.scatter(df["cv_auc"], y, marker="D", s=60, facecolors="none", edgecolors=GREY,
+               label="Cross-validated AUC (selection)", zorder=3)
+    ax.scatter(df["auc"], y, s=90, color=colors, edgecolors=DARK, label="Test AUC", zorder=4)
+    ax.set_yticks(y, [display_name(m) for m in df.index])
 
-    lo = min(0.65, df["auc"].min() - 0.02)
-    hi = max(0.81, df["auc"].max() + 0.03)
-    ax.set_xlim(lo, hi)
+    lo, hi = df[["auc", "cv_auc"]].min().min(), df[["auc", "cv_auc"]].max().max()
+    ax.set_xlim(lo - 0.01, hi + 0.025)
     for i, (auc, cv) in enumerate(zip(df["auc"], df["cv_auc"])):
-        ax.text(auc + 0.002, i, f"{auc:.4f}  (CV {cv:.4f})", va="center",
+        ax.text(max(auc, cv) + 0.002, i, f"{auc:.4f}  (CV {cv:.4f})", va="center",
                 fontsize=10, fontweight="bold", color=DARK)
 
-    ax.set_xlabel("Test AUC-ROC (models ranked by cross-validated AUC)", fontsize=12, color=DARK)
+    ax.set_xlabel("AUC-ROC (models ranked by cross-validated AUC)", fontsize=12, color=DARK)
     ax.set_title("PD Model Comparison: AUC-ROC", fontsize=14, fontweight="bold", color=DARK, pad=12)
+    ax.legend(loc="lower right")
+    _style(ax)
+    plt.tight_layout()
+    return _save(fig, filename)
+
+
+def plot_shap_comparison(importance_share: pd.DataFrame, filename: str = "shap_pd_comparison.png"):
+    """
+    Share of total mean |SHAP| per feature (%), one bar per model, features ordered
+    by the first column (the selected model).
+    """
+    df = importance_share.sort_values(importance_share.columns[0], ascending=True)
+    y = np.arange(len(df))
+    h = 0.38
+
+    fig, ax = plt.subplots(figsize=(10, 0.45 * len(df) + 1.5))
+    for k, (col, color) in enumerate(zip(df.columns, [PD_DARK, PD_LIGHT])):
+        ax.barh(y + (0.5 - k) * h, df[col], height=h, color=color, label=col)
+    ax.set_yticks(y, df.index)
+    ax.set_xlabel("Share of mean |SHAP| (%), one-hot columns summed per feature", color=DARK)
+    ax.set_title("What drives the PD: SHAP importance in two model families",
+                 fontsize=14, fontweight="bold", color=DARK, pad=12)
     ax.legend(loc="lower right")
     _style(ax)
     plt.tight_layout()
