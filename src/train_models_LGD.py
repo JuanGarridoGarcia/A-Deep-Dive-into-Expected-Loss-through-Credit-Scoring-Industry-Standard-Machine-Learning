@@ -152,11 +152,13 @@ def train_decision_tree(
     n_iter: int = 50,
 ) -> dict:
 
+    # Squared error only: the search is scored on RMSE, so it is the matching split
+    # criterion, and sklearn's absolute_error criterion recomputes medians at every
+    # split, which on tens of thousands of rows takes hours per fit.
     param_dist = {
         'max_depth':         randint(3, 15),
         'min_samples_split': randint(50, 500),
         'min_samples_leaf':  randint(20, 200),
-        'criterion':         ['squared_error', 'absolute_error'],
     }
 
     return _run_search(
