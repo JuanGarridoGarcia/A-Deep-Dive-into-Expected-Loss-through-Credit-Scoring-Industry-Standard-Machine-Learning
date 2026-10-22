@@ -106,11 +106,13 @@ def plot_shap_comparison(importance_share: pd.DataFrame, filename: str = "shap_p
     return _save(fig, filename)
 
 
-def plot_lgd_model_comparison(results: pd.DataFrame, selected: str,
+def plot_lgd_model_comparison(results: pd.DataFrame, selected: str, baseline_rmse: float = None,
                               filename: str = "lgd_model_comparison.png"):
     """
     Horizontal bars of test RMSE per LGD model, ordered by cross-validated RMSE
-    (the selection criterion). The selected model is highlighted.
+    (the selection criterion). The selected model is highlighted. If given,
+    `baseline_rmse` (predicting the training mean for every loan) is drawn as a
+    reference line, so the gain over a constant is visible.
     """
     df = results.sort_values("cv_rmse", ascending=False)
     colors = [LGD_DARK if m == selected else LGD_LIGHT for m in df.index]
@@ -118,9 +120,14 @@ def plot_lgd_model_comparison(results: pd.DataFrame, selected: str,
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.barh([DISPLAY_NAMES.get(m, m) for m in df.index], df["rmse"], color=colors, height=0.58)
 
-    ax.set_xlim(0, df["rmse"].max() * 1.45)
+    if baseline_rmse is not None:
+        ax.axvline(baseline_rmse, color=RED, linestyle="--", lw=1.5,
+                   label=f"Predict the mean: RMSE {baseline_rmse:.2f}")
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.16), frameon=False)
+    right = max(df["rmse"].max(), baseline_rmse or 0)
+    ax.set_xlim(0, right * 1.5)
     for i, (rmse, r2) in enumerate(zip(df["rmse"], df["r2"])):
-        ax.text(rmse + df["rmse"].max() * 0.01, i, f"RMSE {rmse:.2f}  |  R² {r2:.4f}",
+        ax.text(right * 1.02, i, f"RMSE {rmse:.2f}  |  R² {r2:.4f}",
                 va="center", fontsize=10, fontweight="bold", color=DARK)
 
     ax.set_xlabel("Test RMSE, percentage points (models ranked by cross-validated RMSE)",
