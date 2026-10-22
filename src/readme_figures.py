@@ -232,9 +232,12 @@ def plot_key_metrics(pd_auc: float, pd_model: str, lgd_r2: float, lgd_model: str
 
 def interest_rate_ranges(df: pd.DataFrame, quartile_col: str = "interest_rate_q",
                          rate_col: str = "interest_rate") -> list:
-    """Rounded min-max interest rate label per quartile, e.g. ['5-10%', ...]."""
+    """Min-max interest rate label per quartile with one decimal, e.g. ['5.3-9.9%', ...].
+
+    Whole-number rounding made neighbouring quartiles look overlapping (9-13%, 12-16%).
+    """
     g = df.groupby(quartile_col, observed=True)[rate_col].agg(["min", "max"])
-    return [f"{int(np.floor(lo))}-{int(np.ceil(hi))}%" for lo, hi in zip(g["min"], g["max"])]
+    return [f"{lo:.1f}-{hi:.1f}%" for lo, hi in zip(g["min"], g["max"])]
 
 
 def plot_pipeline(v: dict, filename: str = "pipeline.png"):
