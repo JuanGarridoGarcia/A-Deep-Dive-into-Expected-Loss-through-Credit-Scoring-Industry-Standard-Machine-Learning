@@ -77,6 +77,8 @@ SHAP values decompose every prediction into feature contributions (in log-odds f
 
 ![SHAP PD](assets/shap_pd_final.png)
 
+With a logistic regression each grade dummy adds a fixed shift in log-odds relative to the reference grade (A1): loans in that grade are the red dot on the right, all others the blue band just left of zero. Because grade is split into 34 columns, this view understates its total weight, which the next chart corrects.
+
 Because four models are tied, the explanation should not depend on which of them won. The same loans are explained with CatBoost (`TreeExplainer`), and the one-hot columns are summed back into their original feature:
 
 ![SHAP PD comparison](assets/shap_pd_comparison.png)
