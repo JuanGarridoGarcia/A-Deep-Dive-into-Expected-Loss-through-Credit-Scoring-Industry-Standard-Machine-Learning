@@ -1,19 +1,26 @@
 # A Deep Dive into Expected Loss through Credit Scoring Industry-Standard Machine Learning under Basel II/III
 
-**A full end-to-end credit risk pipeline built on 2.1 million Lending Club loans, producing calibrated Probability of Default, Loss Given Default, and Expected Loss estimates for an entire loan portfolio.**
+**An end-to-end credit risk pipeline on 2.1 million Lending Club loans: Probability of Default, Loss Given Default and Expected Loss for every loan in the portfolio, developed on loans whose outcome is known and validated against the losses they actually produced.**
 
-![Python](https://img.shields.io/badge/Python-3.13.2-blue?logo=python)
+![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Models](https://img.shields.io/badge/Models-12%20trained-orange)
-![Loans](https://img.shields.io/badge/Loans%20scored-1.25M-blueviolet)
+![Loans](https://img.shields.io/badge/Loans%20scored-2.14M-blueviolet)
 
 ---
 
 ## What this project does
 
-Banks and lenders need to know how much money they stand to lose from a loan portfolio before they buy it. This project builds the full framework to answer that question, following the same methodology used in real banking environments under the Basel II/III regulatory framework.
+Before buying or holding a loan portfolio, a lender needs to know how much it stands to lose. Under the Basel framework that loss is decomposed per loan:
 
-The pipeline takes raw loan data and outputs, for every single loan in the portfolio, three numbers: the probability that the borrower will default, the percentage of the loan value that would be lost if they do, and the expected monetary loss combining both. Multiply those three numbers together and you have the Expected Loss of the portfolio.
+```
+Expected Loss = PD x LGD x EAD
+PD  = probability that the borrower defaults
+LGD = share of the exposure lost if they do
+EAD = exposure at default (here, the amount funded)
+```
+
+The pipeline builds a PD model and an LGD model from application data, scores all 2.14 million loans and adds up the Expected Loss. Every number in this README is produced by the notebooks in `production_notebooks/`, including the charts.
 
 ![Pipeline](assets/pipeline.png)
 
@@ -23,81 +30,120 @@ The pipeline takes raw loan data and outputs, for every single loan in the portf
 
 ![Key Metrics](assets/key_metrics.png)
 
-The portfolio expected loss rate of 3.52% falls exactly within the historical 3-5% range for US unsecured personal loans, confirming that the models produce economically sound estimates, not just statistically optimized ones.
+The Expected Loss here is a **lifetime** figure: the loss expected over the whole life of each loan, not an annual rate. The check that matters is whether it matches reality where reality is known. On the matured loans, whose outcome is complete, the predicted loss is 99.3% of the loss they actually produced; on the test loans, which neither model saw, it is 98.8%.
+
+| | Value |
+|---|---|
+| Loans scored | 2,139,643 (issued 2007-2018) |
+| Total exposure (EAD) | $31.6bn |
+| Total Expected Loss | $3,221M |
+| Lifetime EL rate | 10.18% (matured loans 7.89%, loans still running 11.07%) |
+| EL / realised loss, matured loans | 0.993 |
+| EL / realised loss, test loans | 0.988 |
 
 ---
 
-## The two models
+## The key design decision: learn only from loans whose story has ended
 
-### Probability of Default (PD)
+The data stops at December 2018. A loan issued in 2017 for 60 months is "not defaulted" only in the sense of "not defaulted yet". Training on it teaches a model that recent loans are safe, and the losses of recent defaults are still incomplete because recoveries take years.
 
-Six classification models were trained and compared. The winner was LightGBM with an AUC-ROC of 0.773, well into the "very good" range for retail credit risk without behavioral variables.
+So both models are developed on **matured** loans only (issue date + term before the end of the data): 676,113 loans, 100,589 defaults, default rate 14.9%. The fitted models then score **every** loan, matured or not, which is how a portfolio would actually be valued. The same reasoning removes ten bureau fields that Lending Club only reported from 2016: their missing values would tell the model the vintage, not the borrower.
+
+---
+
+## Probability of Default (PD)
+
+Eleven application features (grade, income, debt-to-income, monthly payment, home ownership, employment, credit lines, recent enquiries, revolving balance, credit utilisation and loan term) feed six classifiers, each tuned with cross-validated random search. The model is chosen by **cross-validated** AUC; the test split never takes part in the choice.
 
 ![PD Model Comparison](assets/pd_model_comparison.png)
 
-One thing worth highlighting: the gap between logistic regression (0.704) and LightGBM (0.773) is exactly the kind of result that fuels the ongoing debate in the industry between interpretability and performance. Logistic regression is the regulatory standard in Basel IRB because every coefficient is auditable. Gradient boosting is better at capturing the complex non-linear relationships in borrower data. This project trains both and documents the trade-off.
+Four models finish within 0.001 of AUC of each other, well inside the sampling error of the test AUC (about 0.003). The selection rule picks the **logistic regression** (CV AUC 0.6849, test AUC 0.6849), and on a tie that is also the right choice: it is the standard form of an application scorecard and every coefficient can be audited. Gradient boosting has little to add here because the strongest input, `grade`, is already Lending Club's own risk score, and the remaining features act mostly in one direction.
 
-To understand what actually drives the model's predictions, SHAP values were computed on the final model. The plot below shows how each feature pushes a borrower's predicted default probability up or down. Interest rate, monthly payment and home ownership status come out as the strongest drivers, which matches the economic intuition: a borrower paying a high rate, already stretched on debt, and using most of their available credit is exactly the profile a risk analyst would flag.
+An AUC of 0.68 is modest, and it is the honest number for this setting: only application data, on a population that Lending Club had already screened (the rejected applicants are not in the data). An earlier version of this project reported 0.773; that figure came from training on immature vintages and on fields whose missingness revealed the vintage.
 
-![SHAP PD](assets/shap_pd_final.png)
+### Calibration
 
-A model that performs well but cannot be explained is a hard sell in a regulated environment. SHAP makes every prediction auditable, which is what allows a gradient boosting model to even be considered alongside the regulatory-standard logistic regression.
+Ranking borrowers is not enough for Expected Loss: a PD of 0.30 has to mean a 30% chance of default. The models are trained with class weighting, which inflates their probabilities (mean 0.46 against a real default rate of 0.15). An isotonic calibrator, fitted on a dedicated calibration split with the trained model frozen, fixes the level without changing the ranking:
 
-### Probability calibration
-
-A good risk score is not enough on its own. For Expected Loss to be meaningful, a predicted probability of 0.30 has to actually mean a 30% chance of default. The raw LightGBM output failed this test badly: class imbalance handling inflated the average predicted probability to 0.41, four times the real default rate of 0.10.
-
-Isotonic regression calibration fixed this without touching the model's ability to rank borrowers by risk. The result lines up almost perfectly with reality:
-
-> After calibration: mean PD = **0.1017**, observed default rate = **0.1017**
+> Test split: mean PD **0.1485**, observed default rate **0.1488**. Brier score 0.226 before calibration, 0.120 after (0.127 for a constant PD at the default rate).
 
 ![Calibration Curve](assets/calibration_curve.png)
 
-The curve on the left shows the raw model drifting away from the diagonal that represents perfect calibration. On the right, after calibration, the predictions track that diagonal closely across the full range of scores. This is the difference between a model that ranks risk well and one whose numbers can actually be trusted in a loss calculation.
+The calibration also holds by segment: by interest-rate quartile, and by term on the test split (36 months: 0.139 against 0.139; 60 months: 0.252 against 0.253). The term check is what caught a real problem: a first run whose feature selection had left `loan_term_months` out underestimated the PD of 60-month loans by 4 to 6 points in every vintage, so the term was added to the model.
 
-### Loss Given Default (LGD)
+### What drives the PD
 
-Six regression models were trained on the ~128k defaulted loans only. CatBoost came out on top with an R² of 0.665 and RMSE of 22.9 percentage points, well above the 0.15-0.40 R² typical of production LGD models trained on real recovery data.
+SHAP values decompose every prediction into feature contributions (in log-odds for the logistic regression). The summary below shows the 20 most influential encoded columns on 50,000 test loans.
+
+![SHAP PD](assets/shap_pd_final.png)
+
+Because four models are tied, the explanation should not depend on which of them won. The same loans are explained with CatBoost (`TreeExplainer`), and the one-hot columns are summed back into their original feature:
+
+![SHAP PD comparison](assets/shap_pd_comparison.png)
+
+Both families agree that `grade` dominates. Below it the importances are flat (3% to 11% each), so their order differs between models; CatBoost spreads more weight over continuous variables such as credit utilisation, where it can use non-linear shapes.
+
+---
+
+## Loss Given Default (LGD)
+
+The LGD target is the net loss on a defaulted loan as a share of the amount funded: `(EAD - principal repaid - recoveries) / EAD`. Six regressors are trained on the 100,589 matured defaults and selected by cross-validated RMSE.
 
 ![LGD Model Comparison](assets/lgd_model_comparison.png)
 
-The LGD model is then applied to the entire portfolio (including non-defaulted loans) to estimate what would be lost if each loan were to default. This is standard practice in Basel IRB capital calculations.
+**CatBoost** is selected (test RMSE 22.6 points, R² 0.064). All six models are within 0.2 points of each other, and the dashed line shows what predicting the average LGD for everyone would give: 23.4. The model improves on that constant by less than a point.
 
-As with the PD model, SHAP values reveal what drives the loss predictions. The total revolving balance and the monthly payment dominate, which makes sense: both are direct measures of how much money is on the line when a borrower stops paying. The larger the outstanding exposure, the more there is to lose.
+### Why the LGD R² is so low
+
+The target mixes two different things:
+
+```
+LGD = (1 - a) x (1 - r)
+a = share of the loan already repaid when the borrower stopped paying
+r = share of the remaining balance recovered after default
+```
+
+| Instalments paid before default | Loans | Mean LGD |
+|---|---|---|
+| 0 to 6 | 13,255 | 81.7% |
+| 6 to 12 | 21,743 | 70.0% |
+| 12 to 18 | 21,666 | 56.7% |
+| 18 to 24 | 19,078 | 42.4% |
+| 24 to 36 | 22,015 | 24.3% |
+
+- **Timing decides the LGD.** The share repaid before default (`a`) explains 86% of the variance of the LGD on its own.
+- **Timing cannot be read from an application.** The same features explain 7.6% of `a`: when a borrower stops paying depends on what happens after the loan is granted.
+- **Recovery is nearly constant.** 86% of defaults recover less than 20% of what was still owed; the loss on the balance at default averages 87%, and the features explain essentially none of it (R² 0.006).
+
+So the low R² is a property of the target on unsecured consumer loans, not a modelling failure, and more complex models would not change it. What the Expected Loss needs is the right **level** of LGD by segment, and that holds: mean predicted LGD 52.2% against 52.2% observed on the test defaults. Notebook `06_training_lgd` contains the full decomposition.
+
+The regulatory alternative, proposed as the next step, is to separate the two parts as Basel IRB models do: EAD as the balance outstanding at default (an amortisation schedule evaluated at the expected default date) and LGD as the loss on that balance, close to a constant 87% for this portfolio.
 
 ![SHAP LGD](assets/shap_lgd_final.png)
-
-Reassuringly, the model needs no calibration adjustment. The average predicted loss on defaulted loans (45.5%) lands almost exactly on the observed average (46.0%), a natural consequence of regression not suffering from the class imbalance problem that distorted the PD probabilities.
 
 ---
 
 ## Expected Loss validation
 
-The real test of a credit risk model is not just whether the individual components perform well in isolation, but whether the combined output makes economic sense. Three checks were run:
-
-**Check 1:** Total EL (662M) is 1.68% above the observed loss on defaulted loans (651M). The small surplus represents the expected losses from currently performing loans with non-zero default probability. This is exactly what EL should be.
-
-**Check 2:** EL rate by loan term: 36-month loans at 3.42%, 60-month loans at 3.68%. Longer loans carry more risk. Correct.
-
-**Check 3:** EL rate by interest rate quartile. This is where the model really shows its discrimination power:
+1. **Against realised losses.** EL / realised loss is 0.993 on the matured loans and 0.988 on the test loans. The realised lifetime loss of the matured loans is 7.94% of their exposure; the model gives 7.89%.
+2. **By term.** 36-month loans 7.13%, 60-month loans 15.01%.
+3. **By interest rate.** The EL rate rises from 3.1% in the lowest-rate quartile to 18.2% in the highest, and the mean PD matches the observed default rate in each quartile of the matured loans.
 
 ![EL by Quartile](assets/el_by_quartile.png)
 
-The highest-rate borrowers carry four times the expected loss of the lowest-rate borrowers. The interest rate that Lending Club assigned at origination turns out to be a strong signal of true credit risk, and the model captures that gradient correctly.
+4. **Loans still running carry a higher EL rate (11.1% against 7.9%).** Mostly composition: 37% of the running loans are 60-month loans against 8% of the matured ones, and they have weaker grades. Within the same term and grade the gap is smaller but still positive in 13 of the 14 cells: the models only see application features, and the recent applications are weaker on average even within a grade. The vintages close to maturity have already reached their predicted default rate, so if anything their EL is understated (see the limitations).
 
 ---
 
-## What makes this project different from a Kaggle notebook
+## What this project does beyond a typical notebook
 
-Most credit risk projects on GitHub train one model, report AUC, and call it done. This project does the full thing:
-
-- **Two independent models** with separate populations, feature sets, and preprocessing pipelines, built the way they would be in a bank
-- **Dual feature selection** combining statistical criteria (SHAP importance, mutual information, permutation importance, Lasso, Boruta) with economic domain knowledge
-- **Survival bias and leakage detection**: variables like `issue_date_year` and post-default recovery metrics are explicitly excluded with documented justification
-- **Inference architecture**: the LGD pipeline is fitted on defaulted loans and applied to the full portfolio, with the reasoning for why this is correct (and its limitations) fully documented
-- **Probability calibration**: the PD model outputs are calibrated from a mean of 0.41 down to 0.10 using isotonic regression
-- **Economic validation**: the EL output is validated against observed losses and tested for correct segment-level ordering, not just cross-validation metrics
-- **12 models compared**: 6 classifiers for PD, 6 regressors for LGD, each tuned with RandomizedSearchCV
+- **Survival bias handled explicitly:** development on matured loans, vintage-dependent fields excluded, every loan scored.
+- **No post-origination information** in any feature; payment and recovery variables only define the targets.
+- **Model selection by cross-validation**, calibration on its own split, test split untouched until the end.
+- **Calibration checked by segment** (rate quartile, term, vintage), which caught and fixed the 60-month bias.
+- **Honest diagnosis of a weak model:** the LGD R² is decomposed into its causes instead of being hidden or inflated.
+- **SHAP across model families** to show that the explanation does not depend on which tied model won.
+- **Reproducible engineering:** treatment rules as fitted specifications, a shared LGD pipeline for training and scoring, unit tests for `src/`, and README charts drawn by the notebooks.
 
 ---
 
@@ -106,33 +152,23 @@ Most credit risk projects on GitHub train one model, report AUC, and call it don
 ```
 repo/
     original_notebook/
-        CreditScoring_ExpectedLossCalculation.ipynb   # archived exploratory run, with all outputs
+        CreditScoring_ExpectedLossCalculation.ipynb   # archived first version, with all outputs
     production_notebooks/
-        01_data_diagnosis.ipynb
-        02_feature_selection.ipynb
-        03_eda_pd.ipynb
-        04_eda_lgd.ipynb
-        05_training_pd.ipynb
-        06_training_lgd.ipynb
-        07_expected_loss.ipynb
-        TECHNICAL_README.md                           # inputs, outputs and decisions per notebook
-    src/
-        clean_features_PD.py      # outlier treatment for the PD features
-        clean_features_LGD.py     # outlier treatment for the LGD features
-        preprocess.py             # RobustScaler + one-hot encoding
-        pipeline_LGD.py           # FeaturePipeline_LGD: fit on defaulted loans, apply to the portfolio
-        train_models_PD.py        # tuning and training of the 6 PD classifiers
-        train_models_LGD.py       # tuning and training of the 6 LGD regressors
-        feature_selection.py      # mutual information, permutation, Lasso, Boruta, SHAP selection
-        feature_engineering.py    # employment title grouping and other feature engineering
-        feature_statistics.py     # dataset audit, outlier summary, distribution tests
-        feature_plot.py           # EDA plots
-    tests/                        # unit tests for src/ (pytest)
-    assets/                       # charts used in this README
+        01_data_diagnosis.ipynb       # targets, matured flag, feature engineering
+        02_feature_selection.ipynb    # exclusions, MI / permutation / Lasso / Boruta, SHAP cutoff
+        03_eda_pd.ipynb               # PD feature treatment
+        04_eda_lgd.ipynb              # LGD feature treatment
+        05_training_pd.ipynb          # 6 classifiers, calibration, SHAP, portfolio scoring
+        06_training_lgd.ipynb         # 6 regressors, LGD decomposition, portfolio scoring
+        07_expected_loss.ipynb        # EL, validation, segment and vintage checks, README charts
+        TECHNICAL_README.md           # inputs, outputs and decisions of every notebook
+    src/                              # feature selection, treatment, pipelines, training, SHAP, charts
+    tests/                            # unit tests for src/ (pytest)
+    assets/                           # README charts, written by the notebooks
     requirements.txt
 ```
 
-The original notebook is the full exploratory analysis, kept as a record with all intermediate outputs. The production notebooks are the clean, modular version and the one to run. `production_notebooks/TECHNICAL_README.md` documents the inputs, outputs and design decisions of each step.
+`production_notebooks/TECHNICAL_README.md` documents each notebook and lists what changed from the original notebook.
 
 ---
 
@@ -145,9 +181,9 @@ pip install -r requirements.txt
 ```
 
 1. Download the [Lending Club loan data (cleared)](https://www.kaggle.com/datasets/db0boy/lending-club-loan-data-cleared/data) from Kaggle and place `X.csv` and `target.csv` in `data/raw/`.
-2. Run the production notebooks in order, 01 to 07, from the repository root or from `production_notebooks/`. Each one reads its inputs from `data/processed/` and writes its outputs there, so they can also be run one at a time.
+2. Run the notebooks in order, 01 to 07, from the repository root or from `production_notebooks/`. Each reads its inputs from `data/processed/` and writes its outputs there. A full run takes about three hours on a 16-core desktop, most of it the PD hyperparameter search.
 
-To run the unit tests:
+Unit tests:
 
 ```bash
 pip install -r requirements-dev.txt
@@ -158,12 +194,19 @@ pytest
 
 ## Limitations
 
-This project is a portfolio implementation, not a production banking system. The most important limitations to be aware of:
+This is a portfolio project, not a production banking model. The main limitations:
 
-The train/test split is random rather than chronological, which means the reported metrics are optimistic compared to a proper out-of-time validation. The LGD target is a proxy (`max_bal_owed / funded_amnt`) rather than real net recovery data. The probability calibration is fitted on the test set due to the absence of a dedicated calibration split. And the models do not incorporate the behavioral variables (monthly payment history, balance evolution) that production credit risk models rely on heavily. All of these are documented in detail in the `docs/` folder.
+- **No out-of-time validation.** The splits are random within the matured loans. Lending Club's 2015-2016 vintages performed worse than earlier ones with the same application profile, and the running loans close to maturity have already reached their predicted default rate, so the EL of the loans still running is more likely understated than overstated. A vintage adjustment (survival curves of early defaults by cohort) is the natural next step.
+- **LGD structure.** The LGD is measured against the amount funded, which mixes default timing with recovery (see above). The Basel structure, EAD at default plus LGD on that balance, is the proposed improvement.
+- **EAD is the amount funded.** It ignores amortisation before default; that effect sits inside the LGD instead.
+- **PD floor not applied.** Isotonic calibration assigns a PD of exactly 0 to some loans. Basel IRB floors the PD at 0.05% (final Basel III reform, implemented in the EU by CRR3; 0.03% under Basel II).
+- **No downturn adjustment.** Through-the-cycle estimates, not the downturn LGD required for regulatory capital.
+- **Approved loans only.** Rejected applicants are not in the data (no reject inference), which caps the achievable discrimination.
+- **Application data only.** No behavioural variables (payment history, balance evolution), which production models rely on.
+- **Gross recoveries.** Collection fees are not in the data, so the LGD is slightly understated.
 
 ---
 
 ## Tech stack
 
-Python 3.13.2, scikit-learn, XGBoost, LightGBM, CatBoost, SHAP, pandas, NumPy, matplotlib
+Python 3.13, pandas, NumPy, scikit-learn, XGBoost, LightGBM, CatBoost, SHAP, Boruta, matplotlib, pytest

@@ -33,7 +33,7 @@ PROFESSIONAL_CATEGORIES = [
 # E.g. 'sales manager' should hit 'Management' before 'Sales' if manager
 # is listed first, so Sales-specific terms are checked before generic ones.
 KEYWORD_MAPPING = [
-    # Healthcare — checked first because terms are unambiguous
+    # Healthcare: checked first because terms are unambiguous
     (["registered nurse", "nurse practitioner", "rn case manager",
       "staff nurse", "nurse manager", "director of nursing",
       "registered nirse", "registered nurs"], "Healthcare"),
@@ -653,7 +653,7 @@ KEYWORD_MAPPING = [
       "quality control reviewer",
       "senior quality technician"], "Construction"),
 
-    # Finance — before Management to catch finance-specific titles
+    # Finance: before Management to catch finance-specific titles
     (["chief financial officer", "director of finance",
       "finance director", "dir of finance",
       "finance mgr", "finance manger"], "Finance"),
@@ -844,7 +844,7 @@ KEYWORD_MAPPING = [
       "account payable", "account receivable",
       "account receivables"], "Finance"),
 
-    # Management — broad terms last within this block
+    # Management: broad terms last within this block
     (["chief operating officer", "chief executive",
       "chief marketing officer", "cmo",
       "chief of staff", "chief of operations",
@@ -1303,7 +1303,7 @@ KEYWORD_MAPPING = [
       "table games", "gaming", "dealer",
       "entertainment", "entertainer"], "Hospitality"),
 
-    # Other — catch-all for remaining known categories
+    # Other: catch-all for remaining known categories
     (["stylist", "hair stylist", "hairstylist",
       "hairdresser", "hair dresser",
       "cosmetologist", "cosmotologist",

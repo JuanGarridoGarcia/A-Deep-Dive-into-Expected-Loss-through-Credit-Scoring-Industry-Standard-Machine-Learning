@@ -26,7 +26,7 @@ MODELS_DIR = 'models'
 def _stratified_sample_regression(X: pd.DataFrame, y: pd.Series, n: int, random_state: int = 42):
     """
     Returns a random sample of size n from X, y.
-    No stratification for regression — samples randomly preserving the target distribution.
+    No stratification for regression: samples randomly preserving the target distribution.
     """
     idx = X.sample(n=min(n, len(X)), random_state=random_state).index
     return X.loc[idx], y.loc[idx]
@@ -86,7 +86,7 @@ def _run_search(
     print(f"  Sampling {min(sample_size, len(X_train)):,} rows for hyperparameter search...")
     X_sample, y_sample = _stratified_sample_regression(X_train, y_train, n=sample_size, random_state=random_state)
 
-    # RandomizedSearchCV on sample — optimize negative RMSE
+    # RandomizedSearchCV on sample: optimize negative RMSE
     print(f"  Running RandomizedSearchCV ({n_iter} iterations, 5-fold CV)...")
     search = RandomizedSearchCV(
         estimator=estimator,
@@ -152,11 +152,13 @@ def train_decision_tree(
     n_iter: int = 50,
 ) -> dict:
 
+    # Squared error only: the search is scored on RMSE, so it is the matching split
+    # criterion, and sklearn's absolute_error criterion recomputes medians at every
+    # split, which on tens of thousands of rows takes hours per fit.
     param_dist = {
         'max_depth':         randint(3, 15),
         'min_samples_split': randint(50, 500),
         'min_samples_leaf':  randint(20, 200),
-        'criterion':         ['squared_error', 'absolute_error'],
     }
 
     return _run_search(
